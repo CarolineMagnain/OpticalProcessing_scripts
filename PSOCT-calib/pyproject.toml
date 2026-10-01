@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "psoct-calib"
+version = "0.1.0"
+description = "Per-column system calibration for polarization-sensitive OCT"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=1.21",
+    "scipy>=1.7",
+    "h5py>=3.0",
+    "matplotlib>=3.4",
+    "pyyaml>=5.4",
+    "tqdm>=4.60",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[project.scripts]
+psoct-calib = "psoct_calib.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

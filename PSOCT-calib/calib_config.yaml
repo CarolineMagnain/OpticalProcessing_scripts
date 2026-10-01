@@ -1,0 +1,23 @@
+# psoct-calib run calib_config.yaml
+# Relative paths are resolved from the directory containing this file.
+# Ranges are 0-based, half-open (Python slicing): MATLAB 4001:5000 -> [4000, 5000].
+
+data_dir: /path/to/data
+profiles: profiles.mat                 # small, shareable
+output: calibration_profile.mat        # {tilt: (J,4,4)} + optional 'meta'
+plot: calibration_fit.png
+
+variables: [J1, J2]
+offset: 0.0             # phase offset [rad]
+sigma_stokes: 1         # Gaussian sigma on the Q/U/V volumes
+sigma_profile: 2        # Gaussian sigma on the averaged profile (along J)
+reference: max_v        # or an integer column index
+reference_tilt: null    # e.g. normal0deg to share one reference across tilts
+warm_start: false
+save_meta: true
+plot_skip: 10
+
+tilts:
+  tiltNeg20deg: {file: Jones_tiltNeg20deg_strip0023_PD12.mat, i_range: [4000, 5000], k_range: [190, 240]}
+  tiltPos20deg: {file: Jones_tiltPos20deg_strip0023_PD12.mat, i_range: [4000, 5000], k_range: [190, 240]}
+  normal0deg:   {file: Jones_normal0deg_strip0023_PD12.mat,   i_range: [4000, 5000], k_range: [190, 240]}
