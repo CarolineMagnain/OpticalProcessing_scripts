@@ -83,13 +83,13 @@ def extract_profile(jones_file, i_range, k_range, sigma_stokes=1.0, offset=0.0):
 # --------------------------------------------------------------------------
 @dataclass
 class CalibrationResult:
-    calibration_M: np.ndarray        # (J, 4, 4)
-    theta_fit: np.ndarray            # (J,)
-    delta_fit: np.ndarray            # (J,)
-    cost: np.ndarray                 # (J,) 0.5 * sum of squared residuals
-    ref_index: int                   # index of the reference column (in ref_tilt)
-    ref_tilt: str                    # '' if the tilt's own profile was used
-    ref_params: tuple                # (theta, delta) of M_ref
+    calibration_M: np.ndarray  # (J, 4, 4)
+    theta_fit: np.ndarray  # (J,)
+    delta_fit: np.ndarray  # (J,)
+    cost: np.ndarray  # (J,) 0.5 * sum of squared residuals
+    ref_index: int  # index of the reference column (in ref_tilt)
+    ref_tilt: str  # '' if the tilt's own profile was used
+    ref_params: tuple  # (theta, delta) of M_ref
     sigma_profile: float
     smoothed: tuple = field(repr=False)  # (Qs, Us, Vs) used for the fit
 
@@ -107,8 +107,11 @@ class CalibrationResult:
         if profile_entry is not None:
             for key in ("source", "i_range", "k_range", "sigma_stokes", "offset"):
                 if key in profile_entry:
-                    m[key] = np.asarray(profile_entry[key]) if key.endswith("range") \
+                    m[key] = (
+                        np.asarray(profile_entry[key])
+                        if key.endswith("range")
                         else profile_entry[key]
+                    )
         return m
 
 
@@ -144,8 +147,17 @@ def reference_params(Qa, Ua, Va, sigma=2.0, reference="max_v"):
     return idx, (float(theta), float(delta))
 
 
-def fit_calibration(Qa, Ua, Va, sigma=2.0, reference="max_v",
-                    ref_params=None, ref_tilt="", ref_index=None, warm_start=False):
+def fit_calibration(
+    Qa,
+    Ua,
+    Va,
+    sigma=2.0,
+    reference="max_v",
+    ref_params=None,
+    ref_tilt="",
+    ref_index=None,
+    warm_start=False,
+):
     """Fit the per A-line system retarder M_LR(j).
 
     Parameters
@@ -164,7 +176,7 @@ def fit_calibration(Qa, Ua, Va, sigma=2.0, reference="max_v",
     """
     Qs, Us, Vs = smooth_profile(Qa, Ua, Va, sigma)
     theta_m, delta_m = retarder_params_from_stokes(Qs, Us, Vs)
-    M_meas_all = linear_retarder(theta_m, delta_m)          # (J, 4, 4)
+    M_meas_all = linear_retarder(theta_m, delta_m)  # (J, 4, 4)
 
     if ref_params is None:
         ref_index = resolve_reference(Vs, reference)
@@ -197,8 +209,7 @@ def fit_calibration(Qa, Ua, Va, sigma=2.0, reference="max_v",
     )
 
 
-def calibrate_tilts(profiles, sigma=2.0, reference="max_v", reference_tilt=None,
-                    warm_start=False):
+def calibrate_tilts(profiles, sigma=2.0, reference="max_v", reference_tilt=None, warm_start=False):
     """Fit every tilt in ``profiles`` ({tilt: entry with Qa/Ua/Va}).
 
     If ``reference_tilt`` is given, all tilts share the reference retarder
@@ -207,8 +218,7 @@ def calibrate_tilts(profiles, sigma=2.0, reference="max_v", reference_tilt=None,
     shared = None
     if reference_tilt:
         if reference_tilt not in profiles:
-            raise KeyError(f"reference tilt '{reference_tilt}' not in profiles "
-                           f"({list(profiles)})")
+            raise KeyError(f"reference tilt '{reference_tilt}' not in profiles ({list(profiles)})")
         p = profiles[reference_tilt]
         shared = reference_params(p["Qa"], p["Ua"], p["Va"], sigma, reference)
 
@@ -242,7 +252,7 @@ def apply_calibration(O3D, R3D, calibration_M, dtype=np.float32):
     I, J, K = O3D.shape
     if calibration_M.shape[0] != J:
         raise ValueError(f"calibration has {calibration_M.shape[0]} columns, data has J={J}")
-    B = np.linalg.inv(calibration_M)[:, None]      # (J, 1, 4, 4), broadcast over K
+    B = np.linalg.inv(calibration_M)[:, None]  # (J, 1, 4, 4), broadcast over K
 
     Q = np.empty((I, J, K), dtype=dtype)
     U = np.empty((I, J, K), dtype=dtype)

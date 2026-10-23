@@ -2,11 +2,16 @@ import h5py
 import numpy as np
 import pytest
 import yaml
-
 from conftest import synthetic_jones, write_v73_like
+
 from psoct_calib.cli import main
+from psoct_calib.exceptions import InvalidJonesFileError, PSOCTError
 from psoct_calib.io import (
-    JonesFile, check_key, load_calibration, load_mat_dict, save_calibration,
+    JonesFile,
+    check_key,
+    load_calibration,
+    load_mat_dict,
+    save_calibration,
     tilt_from_filename,
 )
 
@@ -16,6 +21,10 @@ TILTS = ["tiltNeg20deg", "tiltPos20deg", "normal0deg"]
 def test_tilt_from_filename():
     assert tilt_from_filename("/x/Jones_tiltNeg20deg_strip0023_PD12.mat") == "tiltNeg20deg"
     assert tilt_from_filename("Jones_normal0deg_strip0001_PD3.mat") == "normal0deg"
+    with pytest.raises(InvalidJonesFileError):
+        tilt_from_filename("something_else.mat")
+    with pytest.raises(PSOCTError):
+        tilt_from_filename("something_else.mat")
     with pytest.raises(ValueError):
         tilt_from_filename("something_else.mat")
     with pytest.raises(ValueError):
@@ -43,8 +52,9 @@ def test_calibration_file_roundtrip(tmp_path):
 
 def _make_dataset(tmp_path):
     for n, t in enumerate(TILTS):
-        write_v73_like(tmp_path / f"Jones_{t}_strip0023_PD12.mat",
-                       *synthetic_jones((24, 30, 18), seed=n))
+        write_v73_like(
+            tmp_path / f"Jones_{t}_strip0023_PD12.mat", *synthetic_jones((24, 30, 18), seed=n)
+        )
 
 
 def test_extract_calibrate_apply(tmp_path):
@@ -65,7 +75,7 @@ def test_extract_calibrate_apply(tmp_path):
     out = str(tmp_path / "corrected.h5")
     main(["apply", files[0], "--calib", cal, "-o", out, "--chunk", "7"])
     with h5py.File(out, "r") as f:
-        assert f["Q"].shape == (18, 30, 24)      # MATLAB h5read gives (24, 30, 18)
+        assert f["Q"].shape == (18, 30, 24)  # MATLAB h5read gives (24, 30, 18)
         assert f.attrs["tilt"] == "tiltNeg20deg"
         assert np.all(np.isfinite(f["V"][...]))
 
@@ -76,17 +86,45 @@ def test_run_config_and_shared_reference(tmp_path, capsys):
         "data_dir": ".",
         "output": "calibration_profile.mat",
         "reference_tilt": "normal0deg",
-        "tilts": {t: {"file": f"Jones_{t}_strip0023_PD12.mat",
-                      "i_range": [4, 20], "k_range": [3, 15]} for t in TILTS},
+        "tilts": {
+            t: {"file": f"Jones_{t}_strip0023_PD12.mat", "i_range": [4, 20], "k_range": [3, 15]}
+            for t in TILTS
+        },
     }
     cfg_path = tmp_path / "calib_config.yaml"
     cfg_path.write_text(yaml.safe_dump(cfg))
 
     main(["run", str(cfg_path)])
-    main(["run", str(cfg_path)])                  # second run skips extraction
+    main(["run", str(cfg_path)])  # second run skips extraction
     assert "up to date" in capsys.readouterr().out
 
     raw = load_mat_dict(tmp_path / "calibration_profile.mat")
     assert set(raw) == set(TILTS) | {"meta"}
     refs = {raw["meta"][t]["ref_tilt"] for t in TILTS}
     assert refs == {"normal0deg"}
+
+
+def test_init_config(tmp_path, capsys):
+    out = tmp_path / "custom_config.yaml"
+    main(["init-config", "-o", str(out)])
+    assert out.exists()
+    assert "data_dir:" in out.read_text()
+
+    # Overwrite fails without --force
+    with pytest.raises(SystemExit):
+        main(["init-config", "-o", str(out)])
+
+    # Overwrite succeeds with --force
+    main(["init-config", "-o", str(out), "--force"])
+    assert out.exists()
+
+    # --example flag
+    out_example = tmp_path / "example_config.yaml"
+    main(["init-config", "-o", str(out_example), "--example"])
+    assert out_example.exists()
+    assert "data_dir:" in out_example.read_text()
+
+    # --print flag
+    main(["init-config", "--print"])
+    captured = capsys.readouterr().out
+    assert "data_dir:" in captured

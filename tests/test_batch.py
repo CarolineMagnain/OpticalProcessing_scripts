@@ -1,12 +1,13 @@
 """apply-tiles must reproduce the original per-tile processing script."""
+
 import os
 
 import numpy as np
+from conftest import synthetic_jones, write_v73_like
 from numpy import arccos, arctan2, cos, log10, pi, sin, sqrt
 from scipy.io import loadmat
 from scipy.ndimage import gaussian_filter
 
-from conftest import synthetic_jones, write_v73_like
 from psoct_calib.batch import parse_tiles, process_tile, run_tiles
 from psoct_calib.cli import main
 from psoct_calib.io import save_calibration
@@ -36,8 +37,9 @@ def script_tile(Jones1, Jones2, calibration_M):
         Mt = B @ Mm @ B
         Mc = Mt @ Mt
         Qd[i], Ud[i], Vd[i] = -Mc[..., 1, 3], Mc[..., 2, 3], Mc[..., 3, 3]
-    return {k: v.astype("float32") for k, v in
-            dict(Q=Qd, U=Ud, V=Vd, inten=inten).items()}
+    return {k: v.astype("float32") for k, v in dict(Q=Qd, U=Ud, V=Vd, inten=inten).items()}
+
+
 # ---------------------------------------------------------------------------
 
 
@@ -56,6 +58,17 @@ def test_process_tile_matches_script():
         assert np.allclose(got[k], ref[k], atol=1e-6), k
 
 
+def test_process_tile_shape_validation():
+    import pytest
+
+    J1, J2 = synthetic_jones((12, 20, 16), seed=7)
+    M = _calib(20)
+    with pytest.raises(ValueError, match="shapes do not match"):
+        process_tile(J1, J2[:10], M)
+    with pytest.raises(ValueError, match="columns"):
+        process_tile(J1, J2, _calib(15))
+
+
 def test_parse_tiles():
     assert parse_tiles("1-55") == list(range(1, 56))
     assert parse_tiles("1,4,10-12") == [1, 4, 10, 11, 12]
@@ -72,8 +85,21 @@ def test_apply_tiles_cli(tmp_path):
     M = _calib(20)
     save_calibration(cal, {"normal0deg": M, "tiltNeg20deg": _calib(20, 6)})
 
-    args = ["apply-tiles", "--tilt", "normal0deg", "--slice", "3", "--path-in", str(data),
-            "--path-out", str(out), "--calib", str(cal), "--tiles", "1-3"]
+    args = [
+        "apply-tiles",
+        "--tilt",
+        "normal0deg",
+        "--slice",
+        "3",
+        "--path-in",
+        str(data),
+        "--path-out",
+        str(out),
+        "--calib",
+        str(cal),
+        "--tiles",
+        "1-3",
+    ]
     main(args)
 
     names = sorted(os.listdir(out))
@@ -86,11 +112,30 @@ def test_apply_tiles_cli(tmp_path):
             assert np.allclose(d[var], ref[var], atol=1e-6)
 
     # restart: nothing to redo
-    assert run_tiles(str(data), str(out), str(cal), "normal0deg", 3, "1-3",
-                     skip_existing=True, log=lambda *a: None) == []
+    assert (
+        run_tiles(
+            str(data),
+            str(out),
+            str(cal),
+            "normal0deg",
+            3,
+            "1-3",
+            skip_existing=True,
+            log=lambda *a: None,
+        )
+        == []
+    )
     # missing tile handling
-    assert run_tiles(str(data), str(out), str(cal), "normal0deg", 3, "3-4",
-                     skip_missing=True, log=lambda *a: None) == [3]
+    assert run_tiles(
+        str(data),
+        str(out),
+        str(cal),
+        "normal0deg",
+        3,
+        "3-4",
+        skip_missing=True,
+        log=lambda *a: None,
+    ) == [3]
 
 
 def test_apply_tiles_without_slice(tmp_path):
@@ -102,11 +147,25 @@ def test_apply_tiles_without_slice(tmp_path):
     M = _calib(20)
     save_calibration(cal, {"normal0deg": M})
 
-    main(["apply-tiles", "--tilt", "normal0deg", "--tiles", "1", "--path-in", str(data),
-          "--path-out", str(out), "--calib", str(cal)])
+    main(
+        [
+            "apply-tiles",
+            "--tilt",
+            "normal0deg",
+            "--tiles",
+            "1",
+            "--path-in",
+            str(data),
+            "--path-out",
+            str(out),
+            "--calib",
+            str(cal),
+        ]
+    )
 
     assert sorted(os.listdir(out)) == sorted(
-        f"{p}_normal0deg_strip0001.mat" for p in ("Q", "U", "V", "dBI3D"))
+        f"{p}_normal0deg_strip0001.mat" for p in ("Q", "U", "V", "dBI3D")
+    )
     ref = script_tile(*vol, M)
     d = loadmat(out / "Q_normal0deg_strip0001.mat")
     assert np.allclose(d["Q"], ref["Q"], atol=1e-6)
@@ -114,8 +173,15 @@ def test_apply_tiles_without_slice(tmp_path):
 
 def test_slice_pattern_without_slice_is_an_error(tmp_path):
     import pytest
+
     with pytest.raises(ValueError, match="slice"):
-        run_tiles(str(tmp_path), str(tmp_path), {"normal0deg": np.eye(4)[None]},
-                  "normal0deg", None, "1",
-                  input_pattern="Jones_{tilt}_slice{slice}_strip{tile:04d}_PD12.mat",
-                  log=lambda *a: None)
+        run_tiles(
+            str(tmp_path),
+            str(tmp_path),
+            {"normal0deg": np.eye(4)[None]},
+            "normal0deg",
+            None,
+            "1",
+            input_pattern="Jones_{tilt}_slice{slice}_strip{tile:04d}_PD12.mat",
+            log=lambda *a: None,
+        )

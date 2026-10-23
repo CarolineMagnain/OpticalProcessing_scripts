@@ -24,8 +24,9 @@ def plot_calibrations(results, profiles, path, skip=10, dpi=150):
     import matplotlib.pyplot as plt
 
     tilts = list(results)
-    fig, axes = plt.subplots(1, len(tilts), figsize=(4.5 * len(tilts), 3.6),
-                             sharey=True, squeeze=False)
+    fig, axes = plt.subplots(
+        1, len(tilts), figsize=(4.5 * len(tilts), 3.6), sharey=True, squeeze=False
+    )
     for ax, tilt in zip(axes[0], tilts):
         p = profiles[tilt]
         rec = reconstruct_profile(p["Qa"], p["Ua"], p["Va"], results[tilt].calibration_M)

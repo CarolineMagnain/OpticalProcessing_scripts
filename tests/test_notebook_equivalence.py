@@ -1,10 +1,14 @@
 """The package must reproduce the original notebook exactly."""
+
 import numpy as np
 from scipy.ndimage import gaussian_filter
 from scipy.optimize import least_squares
 
 from psoct_calib.calibration import (
-    apply_calibration, extract_profile, fit_calibration, reconstruct_profile,
+    apply_calibration,
+    extract_profile,
+    fit_calibration,
+    reconstruct_profile,
 )
 from psoct_calib.io import JonesFile
 from psoct_calib.mueller import linear_retarder
@@ -53,8 +57,12 @@ def nb_calibrate(Qa_o, Ua_o, Va_o):
         Minv = np.linalg.inv(M_LR)
         Mt = Minv @ M_meas @ Minv
         Mc = Mt @ Mt
-        Qc.append(-Mc[1, 3]); Uc.append(Mc[2, 3]); Vc.append(Mc[3, 3])
+        Qc.append(-Mc[1, 3])
+        Uc.append(Mc[2, 3])
+        Vc.append(Mc[3, 3])
     return np.array(Ms), np.array(Qc), np.array(Uc), np.array(Vc)
+
+
 # ---------------------------------------------------------------------------
 
 
@@ -90,13 +98,12 @@ def test_apply_matches_per_voxel_loop(jones_volume):
         Mm = linear_retarder(np.radians(O3D[i, j, k]), np.radians(R3D[i, j, k]))
         B = np.linalg.inv(M[j])
         Mc = (B @ Mm @ B) @ (B @ Mm @ B)
-        assert np.allclose([Q[i, j, k], U[i, j, k], V[i, j, k]],
-                           [-Mc[1, 3], Mc[2, 3], Mc[3, 3]])
+        assert np.allclose([Q[i, j, k], U[i, j, k], V[i, j, k]], [-Mc[1, 3], Mc[2, 3], Mc[3, 3]])
 
 
 def test_constant_profile_gives_identity_calibration():
     J = 25
-    th, de = 0.4, 0.6   # single-pass retarder
+    th, de = 0.4, 0.6  # single-pass retarder
     Qa = np.full(J, np.sin(2 * th) * np.sin(2 * de))
     Ua = np.full(J, np.cos(2 * th) * np.sin(2 * de))
     Va = np.full(J, np.cos(2 * de))

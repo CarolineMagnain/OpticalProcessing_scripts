@@ -1,7 +1,10 @@
 import numpy as np
 
 from psoct_calib.mueller import (
-    linear_retarder, retarder_params_from_stokes, rot_mueller, stokes_from_mueller,
+    linear_retarder,
+    retarder_params_from_stokes,
+    rot_mueller,
+    stokes_from_mueller,
 )
 
 

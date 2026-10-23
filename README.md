@@ -10,9 +10,27 @@ are stored in a single small `.mat` file.
 
 ## Install
 
+### Directly from Git
+
+Install the latest version directly using `pip`:
+
+```bash
+pip install "git+https://github.com/CarolineMagnain/OpticalProcessing_scripts.git"
+```
+
+To include test dependencies:
+
+```bash
+pip install "git+https://github.com/CarolineMagnain/OpticalProcessing_scripts.git#egg=psoct-calib[test]"
+```
+
+### From Source (Development)
+
+Clone the repository and install in editable mode:
+
 ```bash
 git clone https://github.com/CarolineMagnain/OpticalProcessing_scripts.git
-cd OCTAnalysis/psoct-calib
+cd OpticalProcessing_scripts
 pip install -e ".[test]"
 ```
 
@@ -20,12 +38,22 @@ Requires Python ≥ 3.9, numpy, scipy, h5py, matplotlib, pyyaml, tqdm.
 
 ## Quick start
 
-The simplest route is one config file for all tilts:
+The simplest route is one config file for all tilts. Generate a starter config using the CLI shortcut:
 
 ```bash
-cp calib_config.example.yaml calib_config.yaml   # edit data_dir and ROIs
-psoct-calib run calib_config.yaml
+# 1. Initialize config template in your working directory:
+psoct-calib init-config            # creates calib_config.yaml (or: psoct-calib init-config -o path/to/config.yaml)
+
+# 2. Edit data_dir and ROIs in calib_config.yaml
+# 3. Run calibration:
+psoct-calib run                    # defaults to calib_config.yaml, or pass path: psoct-calib run path/to/config.yaml
 ```
+
+Starter configuration templates are bundled directly inside the package (`psoct_calib/config/`):
+- `psoct-calib init-config`: creates `calib_config.yaml` from the bundled template.
+- `psoct-calib init-config --example`: creates `calib_config.yaml` from `calib_config.example.yaml`.
+- `psoct-calib init-config -o custom_config.yaml`: writes to a custom file location.
+- `psoct-calib init-config --print`: prints the template to standard output.
 
 This produces:
 
@@ -132,7 +160,7 @@ The same processing is available in Python:
 ```python
 from psoct_calib.batch import process_tile, run_tiles
 
-out = process_tile(J1, J2, calibration_M)          # dict: Q, U, V, inten (float32)
+out = process_tile(J1, J2, calibration_M)  # dict: Q, U, V, inten (float32)
 run_tiles(path_in, path_out, "calibration_profile.mat", "normal0deg", slice_num=3, tiles="1-55")
 ```
 
@@ -154,7 +182,8 @@ run_tiles(path_in, path_out, "calibration_profile.mat", "normal0deg", slice_num=
 ## Package layout
 
 ```
-src/psoct_calib/
+psoct_calib/
+  config/         bundled configuration templates (calib_config.yaml, calib_config.example.yaml)
   mueller.py      rotation and linear-retarder Mueller matrices, Stokes <-> retarder
   stokes.py       Jones -> (R, O) -> normalized Q, U, V
   io.py           lazy v7.3 (HDF5) reader, small .mat read/write
